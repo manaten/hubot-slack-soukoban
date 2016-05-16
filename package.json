@@ -1,0 +1,30 @@
+{
+  "name": "hubot-slack-soukoban",
+  "version": "0.0.1",
+  "description": "Playing soukoban game on slack.",
+  "main": "src/index.coffee",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manaten/hubot-slack-soukoban.git"
+  },
+  "keywords": [
+    "hubot",
+    "slack",
+    "soukoban",
+    "game"
+  ],
+  "author": "manaten <manaten@manaten.net> (http://manaten.net/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/manaten/hubot-slack-soukoban/issues"
+  },
+  "homepage": "https://github.com/manaten/hubot-slack-soukoban#readme",
+  "dependencies": {
+    "coffee-script": "~1.6",
+    "es6-promise": "3.2.1",
+    "lodash": "4.12.0"
+  }
+}
