@@ -2,13 +2,15 @@
 #  Start soukoban game on slack.
 #
 # Commands:
-#  hubot soukoban - Start soukoban game.
+#  soukoban - Start soukoban game.
 #
 # Author:
 #  manaten
 #
 _ = require 'lodash'
 {Promise} = require 'es6-promise'
+
+MAPS = require './maps.coffee'
 
 EMOJIS = {
   up    : 'point_up'
@@ -57,18 +59,8 @@ Util = {
 }
 
 class SoukobanGame
-  constructor: ->
+  constructor: (@state) ->
     @work = 0
-    @state = """
-#########
-#.......#
-#.##b##.#
-#.p...b.#
-##bggg#.#
-.#....#.#
-.###..###
-...####..
-"""
 
   isClear: -> !(/[gP]/.test @state)
 
@@ -79,20 +71,17 @@ class SoukobanGame
         when 'g' then ":#{EMOJIS.goal}:"
         when 'p', 'P' then ":#{EMOJIS.player}:"
         when 'b', 'B' then ":#{EMOJIS.box}:"
-    ) + "\ncount: #{@work} #{if @isClear() then 'クリアおめ' else ''}"
+    ) + "\ncount: #{@work} #{if @isClear() then 'Game clear!!' else ''}"
 
-  right: ->
-    @work = @work + 1
-    @state = Util.moveRight @state
-  up: ->
-    @work = @work + 1
-    @state = Util.translocateStr Util.flipStr Util.moveRight Util.flipStr Util.translocateStr @state
-  down: ->
-    @work = @work + 1
-    @state = Util.translocateStr Util.moveRight Util.translocateStr @state
-  left: ->
-    @work = @work + 1
-    @state = Util.flipStr Util.moveRight Util.flipStr @state
+  updateState: (newState) ->
+    if newState isnt @state
+      @state = newState
+      @work = @work + 1
+
+  right: -> @updateState Util.moveRight @state
+  up: -> @updateState Util.translocateStr Util.flipStr Util.moveRight Util.flipStr Util.translocateStr @state
+  down: -> @updateState Util.translocateStr Util.moveRight Util.translocateStr @state
+  left: -> @updateState Util.flipStr Util.moveRight Util.flipStr @state
 
 module.exports = (robot) ->
   games = {}
@@ -129,18 +118,16 @@ module.exports = (robot) ->
         game[emojiKey]()
         updateMessage game.print(), channelId, ts
 
-  robot.respond /soukoban/, (msg) ->
+  robot.hear /soukoban/, (msg) ->
     unless robot.adapter?.client?._apiCall?
       msg.send 'This script runs only with hubot-slack.'
       return
 
     chId = robot.adapter.client.getChannelGroupOrDMByName(msg.envelope.room)?.id
-    game = new SoukobanGame()
+    game = new SoukobanGame(msg.random MAPS)
     postMessage(game.print(), chId)
     .then (res) ->
       games[res.ts] = game
-      Promise.all(
-        [EMOJIS.left, EMOJIS.up, EMOJIS.down, EMOJIS.right].reduce((curr, name) ->
-          curr.then(-> addReaction(name, chId, res.ts))
-        , Promise.resolve())
-      )
+      [EMOJIS.left, EMOJIS.up, EMOJIS.down, EMOJIS.right].reduce((curr, name) ->
+        curr.then(-> addReaction(name, chId, res.ts))
+      , Promise.resolve())
