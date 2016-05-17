@@ -24,64 +24,40 @@ EMOJIS = {
   goal  : 'small_blue_diamond'
 }
 
-Util = {
+Util =
   strToMatrix: (str) -> str.split(/\n/).map((s) -> s.split(''))
   matrixToStr: (matrix) -> matrix.map((a) -> a.join('')).join('\n')
-  flipStr: (str) -> Util.matrixToStr Util.strToMatrix(str).map(_.reverse)
-  translocateMatrix: (matrix) ->
-    _.range(matrix[0].length).map((j) ->
-      _.range(matrix.length).map((i) -> matrix[i][j])
-    )
+  translocateMatrix: (matrix) -> _.range(matrix[0].length).map((j) -> _.range(matrix.length).map((i) -> matrix[i][j]))
   translocateStr: (str) -> Util.matrixToStr Util.translocateMatrix Util.strToMatrix str
-
+  flipStr: (str) -> Util.matrixToStr Util.strToMatrix(str).map(_.reverse)
   moveRight: (state) ->
     state
-    .replace(/[pP][bB][\.g]/, (cs) ->
-      cs.replace(/./g, (c) ->
-        switch c
-          when 'p' then '.'
-          when 'P' then 'g'
-          when 'b' then 'p'
-          when 'B' then 'P'
-          when '.' then 'b'
-          when 'g' then 'B'
-      )
-    )
-    .replace(/[pP][\.g]/, (cs) ->
-      cs.replace(/./g, (c) ->
-        switch c
-          when 'p' then '.'
-          when 'P' then 'g'
-          when '.' then 'p'
-          when 'g' then 'P'
-      )
-    )
-}
+    .replace(/[PBg]/g, (s) -> {P: 'ap', B: 'ab', g: 'a.'}[s])
+    .replace(/(a?)p(a?)b(a?)\./, '$1.$2p$3b')
+    .replace(/(a?)p(a?)\./, '$1.$2p')
+    .replace(/a[pb\.]/g, (s) -> {ap: 'P', ab: 'B', 'a.': 'g'}[s])
 
 class SoukobanGame
-  constructor: (@state) ->
-    @work = 0
-
+  constructor: (@state) -> @work = 0
   isClear: -> !(/[gP]/.test @state)
-
-  print: -> @state.replace(/[#bBpP\.g]/g, (c) ->
-      switch c
-        when '#' then ":#{EMOJIS.wall}:"
-        when '.' then ":#{EMOJIS.empty}:"
-        when 'g' then ":#{EMOJIS.goal}:"
-        when 'p', 'P' then ":#{EMOJIS.player}:"
-        when 'b', 'B' then ":#{EMOJIS.box}:"
-    ) + "\ncount: #{@work} #{if @isClear() then 'Game clear!!' else ''}"
-
   updateState: (newState) ->
     if newState isnt @state
       @state = newState
       @work = @work + 1
-
   right: -> @updateState Util.moveRight @state
   up: -> @updateState Util.translocateStr Util.flipStr Util.moveRight Util.flipStr Util.translocateStr @state
   down: -> @updateState Util.translocateStr Util.moveRight Util.translocateStr @state
   left: -> @updateState Util.flipStr Util.moveRight Util.flipStr @state
+
+  print: -> @state.replace(/[#bBpP\.g]/g, (c) ->
+    switch c
+      when '#' then ":#{EMOJIS.wall}:"
+      when '.' then ":#{EMOJIS.empty}:"
+      when 'g' then ":#{EMOJIS.goal}:"
+      when 'p', 'P' then ":#{EMOJIS.player}:"
+      when 'b', 'B' then ":#{EMOJIS.box}:"
+  ) + "\ncount: #{@work} #{if @isClear() then 'Game clear!!' else ''}"
+
 
 module.exports = (robot) ->
   games = {}
