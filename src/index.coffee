@@ -69,12 +69,13 @@ module.exports = (robot) ->
       as_user: true
     , (res) -> resolve res
 
-  updateMessage = (message, channelId, ts) -> new Promise (resolve) ->
+  updateMessage = (message, channelId, ts) -> new Promise (resolve, reject) ->
     robot.adapter.client._apiCall 'chat.update',
       channel: channelId
       text   : message
       ts     : ts
-    , (res) -> resolve res
+    , (res) ->
+      if res.ok then resolve(res) else reject(new Error res.error)
 
   addReaction = (name, channelId, ts) -> new Promise (resolve) ->
     robot.adapter.client._apiCall 'reactions.add',
@@ -82,6 +83,15 @@ module.exports = (robot) ->
       timestamp: ts
       channel  : channelId
     , (res) -> resolve res
+
+  startGame = (game, channelId) ->
+    postMessage(game.print(), channelId)
+    .then (res) ->
+      games[res.ts] = game
+      [EMOJIS.left, EMOJIS.up, EMOJIS.down, EMOJIS.right].reduce((curr, name) ->
+        curr.then(-> addReaction(name, channelId, res.ts))
+      , Promise.resolve())
+
 
   robot.adapter.client.on 'raw_message', (message) ->
     robotUserId = robot.adapter.client.getUserByName(robot.name).id
@@ -92,7 +102,13 @@ module.exports = (robot) ->
       game = games[ts]
       if game && /^(up|down|left|right)$/.test emojiKey
         game[emojiKey]()
-        updateMessage game.print(), channelId, ts
+        updateMessage(game.print(), channelId, ts)
+        .catch (e) ->
+          if e.message is 'edit_window_closed'
+            delete games[ts]
+            startGame(game, channelId)
+          else
+            Promise.reject e
 
   robot.hear /soukoban[^\d]*(\d*)/, (msg) ->
     unless robot.adapter?.client?._apiCall?
@@ -100,11 +116,6 @@ module.exports = (robot) ->
       return
 
     number = msg.match[1] or Math.floor(Math.random() * MAPS.length)
-    chId = robot.adapter.client.getChannelGroupOrDMByName(msg.envelope.room)?.id
+    channelId = robot.adapter.client.getChannelGroupOrDMByName(msg.envelope.room)?.id
     game = new SoukobanGame(MAPS[number], number)
-    postMessage(game.print(), chId)
-    .then (res) ->
-      games[res.ts] = game
-      [EMOJIS.left, EMOJIS.up, EMOJIS.down, EMOJIS.right].reduce((curr, name) ->
-        curr.then(-> addReaction(name, chId, res.ts))
-      , Promise.resolve())
+    startGame(game, channelId)
