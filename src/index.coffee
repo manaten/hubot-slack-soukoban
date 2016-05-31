@@ -2,7 +2,7 @@
 #  Start soukoban game on slack.
 #
 # Commands:
-#  soukoban - Start soukoban game.
+#  soukoban <number> - Start soukoban game.
 #
 # Author:
 #  manaten
@@ -38,7 +38,7 @@ Util =
     .replace(/a[pb\.]/g, (s) -> {ap: 'P', ab: 'B', 'a.': 'g'}[s])
 
 class SoukobanGame
-  constructor: (@state) -> @work = 0
+  constructor: (@state, @number) -> @work = 0
   isClear: -> !(/[gP]/.test @state)
   updateState: (newState) ->
     if newState isnt @state
@@ -49,7 +49,7 @@ class SoukobanGame
   down: -> @updateState Util.translocateStr Util.moveRight Util.translocateStr @state
   left: -> @updateState Util.flipStr Util.moveRight Util.flipStr @state
 
-  print: -> @state.replace(/[#bBpP\.g]/g, (c) ->
+  print: -> "No.#{@number}\n" + @state.replace(/[#bBpP\.g]/g, (c) ->
     switch c
       when '#' then ":#{EMOJIS.wall}:"
       when '.' then ":#{EMOJIS.empty}:"
@@ -94,13 +94,14 @@ module.exports = (robot) ->
         game[emojiKey]()
         updateMessage game.print(), channelId, ts
 
-  robot.hear /soukoban/, (msg) ->
+  robot.hear /soukoban\s*(\d*)/, (msg) ->
     unless robot.adapter?.client?._apiCall?
       msg.send 'This script runs only with hubot-slack.'
       return
 
+    number = msg.match[1] or Math.floor(Math.random() * MAPS.length)
     chId = robot.adapter.client.getChannelGroupOrDMByName(msg.envelope.room)?.id
-    game = new SoukobanGame(msg.random MAPS)
+    game = new SoukobanGame(MAPS[number], number)
     postMessage(game.print(), chId)
     .then (res) ->
       games[res.ts] = game
