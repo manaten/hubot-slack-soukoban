@@ -94,7 +94,7 @@ module.exports = (robot) ->
         game[emojiKey]()
         updateMessage game.print(), channelId, ts
 
-  robot.hear /soukoban\s*(\d*)/, (msg) ->
+  robot.hear /soukoban.*(\d*)/, (msg) ->
     unless robot.adapter?.client?._apiCall?
       msg.send 'This script runs only with hubot-slack.'
       return
