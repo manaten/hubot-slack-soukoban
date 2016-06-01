@@ -1,6 +1,6 @@
 {
   "name": "hubot-slack-soukoban",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Playing soukoban game on slack.",
   "main": "src/index.coffee",
   "scripts": {
