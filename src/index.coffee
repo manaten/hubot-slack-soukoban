@@ -13,15 +13,17 @@ _ = require 'lodash'
 MAPS = require './maps.coffee'
 
 EMOJIS = {
-  up    : 'point_up'
-  down  : 'point_down'
-  left  : 'point_left'
-  right : 'point_right'
-  player: 'runner'
-  wall  : 'black_large_square'
-  box   : 'white_medium_square'
-  empty : 'mu'
-  goal  : 'small_blue_diamond'
+  up          : 'point_up'
+  down        : 'point_down'
+  left        : 'point_left'
+  right       : 'point_right'
+  player      : 'runner'
+  playerOnGoal: 'runner'
+  wall        : 'black_large_square'
+  box         : 'white_circle'
+  boxOnGoal   : 'large_blue_circle'
+  empty       : 'mu'
+  goal        : 'small_blue_diamond'
 }
 
 Util =
@@ -54,9 +56,11 @@ class SoukobanGame
       when '#' then ":#{EMOJIS.wall}:"
       when '.' then ":#{EMOJIS.empty}:"
       when 'g' then ":#{EMOJIS.goal}:"
-      when 'p', 'P' then ":#{EMOJIS.player}:"
-      when 'b', 'B' then ":#{EMOJIS.box}:"
-  ) + "\ncount: #{@work} #{if @isClear() then 'Game clear!!' else ''}"
+      when 'b' then ":#{EMOJIS.box}:"
+      when 'B' then ":#{EMOJIS.boxOnGoal}:"
+      when 'p' then ":#{EMOJIS.player}:"
+      when 'P' then ":#{EMOJIS.playerOnGoal}:"
+  ) + "\ncount: #{@work} #{if @isClear() then '*Game clear!!*' else ''}"
 
 
 module.exports = (robot) ->
@@ -101,10 +105,12 @@ module.exports = (robot) ->
       channelId = message.item.channel
       game = games[ts]
       if game && /^(up|down|left|right)$/.test emojiKey
+        if game.isClear()
+          return
         game[emojiKey]()
         updateMessage(game.print(), channelId, ts)
         .catch (e) ->
-          if e.message is 'edit_window_closed'
+          if e.message is 'edit_window_closed' and games[ts]?
             delete games[ts]
             startGame(game, channelId)
           else
