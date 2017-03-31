@@ -1,10 +1,11 @@
 {
   "name": "hubot-slack-soukoban",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Playing soukoban game on slack.",
   "main": "src/index.coffee",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint:staged": "lint-staged"
   },
   "repository": {
     "type": "git",
@@ -23,8 +24,27 @@
   },
   "homepage": "https://github.com/manaten/hubot-slack-soukoban#readme",
   "dependencies": {
-    "coffee-script": "~1.6",
     "es6-promise": "3.2.1",
     "lodash": "4.12.0"
+  },
+  "peerDependencies": {
+    "hubot-slack": ">= 4.0.0"
+  },
+  "devDependencies": {
+    "coffee-script": "^1.12.4",
+    "coffeelint": "^1.16.0",
+    "editorconfig-tools": "^0.1.1",
+    "lint-staged": "^3.4.0",
+    "pre-commit": "^1.2.2"
+  },
+  "pre-commit": "lint:staged",
+  "lint-staged": {
+    "*.{cmd,html,json,md,sh,txt,xml,yml}": [
+      "editorconfig-tools fix",
+      "git add"
+    ],
+    "*.coffee": [
+      "coffeelint"
+    ]
   }
 }

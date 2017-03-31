@@ -66,62 +66,44 @@ class SoukobanGame
 module.exports = (robot) ->
   games = {}
 
-  postMessage = (message, channelId) -> new Promise (resolve) ->
-    robot.adapter.client._apiCall 'chat.postMessage',
-      channel: channelId
-      text   : message
-      as_user: true
-    , (res) -> resolve res
-
-  updateMessage = (message, channelId, ts) -> new Promise (resolve, reject) ->
-    robot.adapter.client._apiCall 'chat.update',
-      channel: channelId
-      text   : message
-      ts     : ts
-    , (res) ->
-      if res.ok then resolve(res) else reject(new Error res.error)
-
-  addReaction = (name, channelId, ts) -> new Promise (resolve) ->
-    robot.adapter.client._apiCall 'reactions.add',
-      name     : name
-      timestamp: ts
-      channel  : channelId
-    , (res) -> resolve res
-
   startGame = (game, channelId) ->
-    postMessage(game.print(), channelId)
+    robot.adapter.client.web.chat.postMessage(channelId, game.print(), {as_user: true})
     .then (res) ->
       games[res.ts] = game
       [EMOJIS.left, EMOJIS.up, EMOJIS.down, EMOJIS.right].reduce((curr, name) ->
-        curr.then(-> addReaction(name, channelId, res.ts))
+        curr.then(-> robot.adapter.client.web.reactions.add(name, {channel: channelId, timestamp: res.ts}))
       , Promise.resolve())
 
+  pressButton = (message) ->
+    robotUserId = robot.adapter.client.rtm.dataStore.getUserByName(robot.name).id
+    if message.user is robotUserId
+      return
+    emojiKey = _.findKey EMOJIS, (emoji) -> emoji is message.reaction
+    ts = message.item.ts
+    channelId = message.item.channel
+    game = games[ts]
+    unless game && /^(up|down|left|right)$/.test emojiKey
+      return
+    if game.isClear()
+      return
+    game[emojiKey]()
+    robot.adapter.client.web.chat.update(ts, channelId, game.print())
+    .catch (e) ->
+      if e.message is 'edit_window_closed' and games[ts]?
+        delete games[ts]
+        startGame(game, channelId)
+      else
+        robot.logger.error e
 
-  robot.adapter.client.on 'raw_message', (message) ->
-    robotUserId = robot.adapter.client.getUserByName(robot.name).id
-    if (/^reaction_(added|removed)$/.test message.type) && (message.user isnt robotUserId)
-      emojiKey = _.findKey EMOJIS, (emoji) -> emoji is message.reaction
-      ts = message.item.ts
-      channelId = message.item.channel
-      game = games[ts]
-      if game && /^(up|down|left|right)$/.test emojiKey
-        if game.isClear()
-          return
-        game[emojiKey]()
-        updateMessage(game.print(), channelId, ts)
-        .catch (e) ->
-          if e.message is 'edit_window_closed' and games[ts]?
-            delete games[ts]
-            startGame(game, channelId)
-          else
-            Promise.reject e
+  robot.adapter.client?.rtm?.on? 'reaction_added', pressButton
+  robot.adapter.client?.rtm?.on? 'reaction_removed', pressButton
 
   robot.hear /soukoban[^\d]*(\d*)/, (msg) ->
-    unless robot.adapter?.client?._apiCall?
+    unless robot.adapter.client?.web?
       msg.send 'This script runs only with hubot-slack.'
       return
 
     number = msg.match[1] or Math.floor(Math.random() * MAPS.length)
-    channelId = robot.adapter.client.getChannelGroupOrDMByName(msg.envelope.room)?.id
+    channelId = msg.envelope.room
     game = new SoukobanGame(MAPS[number], number)
     startGame(game, channelId)
